@@ -12,11 +12,13 @@
 if (!require("stringi")) install.packages("stringi")
 if (!require("syuzhet")) install.packages("syuzhet")
 if (!require("tictoc")) install.packages("tictoc") # NEW: For timing
+if (!require("parallel")) install.packages("parallel") # Built-in, but just in case
 
 library(stringi)
 library(dplyr)
 library(syuzhet)
 library(tictoc)
+library(parallel)
 
 # Start global timer
 tic("TOTAL SCRIPT EXECUTION TIME")
@@ -114,13 +116,36 @@ df$title_text_len_ratio <- safe_div(df$title_n_char, df$n_char)
 toc()
 
 # --- 7. Granular Emotions (NRC Lexicon) ---
-tic("7. NRC Emotion Extraction")
-cat("Extracting specific emotions (NRC)... WARNING: This is usually the slowest part.\n")
+tic("7. NRC Emotion Extraction (Parallel)")
+cat("Extracting specific emotions (NRC) using MULTI-CORE processing...\n")
 
-# Extracts specific counts for Anger, Fear, Joy, etc.
-emotions <- get_nrc_sentiment(df$text)
+# 1. Detect cores (Leave 1 free for OS stability)
+num_cores <- detectCores() - 1
+cat("Using", num_cores, "cores for processing.\n")
 
-# Normalize by text length
+# 2. Set up cluster
+cl <- makeCluster(num_cores)
+
+# 3. Load necessary libraries on each worker node
+clusterEvalQ(cl, {
+  library(syuzhet)
+})
+
+# 4. Split data into chunks (one for each core)
+# This is much faster than sending row by row
+chunks <- split(df$text, cut(seq_along(df$text), num_cores, labels = FALSE))
+
+# 5. Run in parallel
+cat("Processing chunks on cluster...\n")
+results_list <- parLapply(cl, chunks, get_nrc_sentiment)
+
+# 6. Combine results back into one dataframe
+emotions <- do.call(rbind, results_list)
+                    
+# 7. Stop cluster to free RAM
+stopCluster(cl)
+
+# 8. Normalize features
 df$ratio_anger   <- safe_div(emotions$anger, df$n_word)
 df$ratio_fear    <- safe_div(emotions$fear, df$n_word)
 df$ratio_disgust <- safe_div(emotions$disgust, df$n_word)
