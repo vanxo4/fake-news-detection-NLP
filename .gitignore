@@ -1,0 +1,62 @@
+# ---------------------------------------------------------
+# DATOS Y ARCHIVOS PESADOS
+# ---------------------------------------------------------
+# Ignorar toda la carpeta de datos
+data/
+
+# Ignorar archivos CSV sueltos en cualquier parte del proyecto
+*.csv
+*.xlsx
+*.dat
+
+# Ignorar archivos temporales o backups de Excel/Word
+~$*
+
+# ---------------------------------------------------------
+# PYTHON
+# ---------------------------------------------------------
+# Archivos compilados y caché (se generan solos)
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Entornos virtuales (venv, env, etc.)
+env/
+venv/
+.env
+.venv/
+
+# Jupyter Notebooks checkpoints
+.ipynb_checkpoints
+*/.ipynb_checkpoints/*
+
+# Distribución / Builds
+build/
+dist/
+*.egg-info/
+
+# ---------------------------------------------------------
+# R / RSTUDIO
+# ---------------------------------------------------------
+.Rhistory
+.RData
+.Ruserdata
+# Archivos de configuración de usuario de RStudio
+.Rproj.user/
+
+# ---------------------------------------------------------
+# IDEs y SISTEMA OPERATIVO
+# ---------------------------------------------------------
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Mac (macOS)
+.DS_Store
+
+# VS Code
+.vscode/
+
+# PyCharm
+.idea/
