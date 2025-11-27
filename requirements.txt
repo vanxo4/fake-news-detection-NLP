@@ -1,0 +1,6 @@
+pandas
+scikit-learn
+joblib
+feedparser
+newspaper4k
+lxml[html_clean]
