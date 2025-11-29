@@ -5,7 +5,6 @@
 data/
 
 # Ignorar archivos CSV sueltos en cualquier parte del proyecto
-*.csv
 *.xlsx
 *.dat
 
