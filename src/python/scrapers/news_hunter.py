@@ -1,55 +1,35 @@
-################################################################################
-# HUNTER AGENT: RSS & Web Scraper
-# ------------------------------------------------------------------------------
-# This script acts as the primary data ingestion engine.
-# 1. Fetches latest URLs from RSS feeds (Real, Satire, and Mixed sources).
-# 2. Uses 'newspaper4k' to download and parse the full article content.
-# 3. Stores the clean data into the SQLite Data Lake.
-################################################################################
-
-import feedparser
-import sqlite3
-import time
-from newspaper import Article, Config
-
 import sys
 import os
+import sqlite3
+import time
+import pandas as pd
+import feedparser
+from newspaper import Article, Config
+
+# --- 1. Path Configuration (Manual approach) ---
+# We need to go up 3 levels: scrapers -> python -> src -> ROOT
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..')))
 
-# --- Configuration ---
-# Path to the Data Lake (SQLite Database)
-DB_PATH = "data/database.db"
+# Define paths relative to the calculated root
+# We use os.path.dirname logic to ensure stability
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+DB_PATH = os.path.join(BASE_DIR, "data", "database.db")
+SOURCES_CSV = os.path.join(BASE_DIR, "data", "sources.csv")
 
-# List of RSS Feeds to monitor
-# We include diverse sources to build a robust dataset:
-# - Mainstream (Reuters, NYT, BBC) -> Likely TRUE
-# - Satire/Parody (The Onion, Babylon Bee) -> Likely FAKE (Style-wise)
-# - Sensationalist (Daily Mail) -> Hard examples
-RSS_SOURCES = {
-    'Reuters World': 'http://feeds.reuters.com/reuters/worldNews',
-    'NY Times World': 'https://rss.nytimes.com/services/xml/rss/nyt/World.xml',
-    'BBC News': 'http://feeds.bbci.co.uk/news/world/rss.xml',
-    'The Onion (Satire)': 'https://www.theonion.com/rss',
-    'Babylon Bee (Satire)': 'https://babylonbee.com/feed', 
-    'Daily Mail': 'https://www.dailymail.co.uk/news/index.rss'
-}
-
-# Browser User-Agent configuration to avoid being blocked by anti-bot systems
+# Browser User-Agent configuration
 USER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-
-# --- Database Initialization ---
 
 def init_db():
     """Creates the necessary tables if they don't exist."""
+    print(f"🔨 Connecting to database at: {DB_PATH}")
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     
     # Table: 'articles'
-    # Stores the raw scraped data. URL is unique to prevent duplicates.
     c.execute('''
         CREATE TABLE IF NOT EXISTS articles (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            url TEXT UNIQUE NOT NULL,
+            url TEXT UNIQUE,
             source TEXT,
             title TEXT,
             text TEXT,
@@ -62,17 +42,14 @@ def init_db():
     conn.commit()
     conn.close()
 
-# --- Core Functions ---
-
 def save_article_to_db(data):
     """
     Inserts a new article into the database.
-    Ignores the insert if the URL already exists (deduplication).
+    Returns True if saved, False if duplicate.
     """
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     try:
-        # data tuple: (url, source, title, text, authors, publish_date)
         c.execute('''
             INSERT OR IGNORE INTO articles 
             (url, source, title, text, authors, publish_date)
@@ -84,7 +61,8 @@ def save_article_to_db(data):
             conn.commit()
             return True
         else:
-            print(f"   ⏭️  Skipped (Duplicate): {data[2][:40]}...")
+            # Uncomment for debugging duplicates
+            # print(f"   ⏭️  Skipped (Duplicate): {data[2][:40]}...")
             return False
             
     except Exception as e:
@@ -95,82 +73,106 @@ def save_article_to_db(data):
 
 def process_feed(source_name, rss_url):
     """
-    Orchestrates the scraping process for a single RSS feed.
+    Scrapes a single feed. Returns the count of new articles saved.
     """
-    print(f"\n📡 Scanning Feed: {source_name}...")
-    
+    print(f"\n📡 Scanning: {source_name}...")
     saved_count = 0
-
-    # 1. Parse RSS to get links
+    
     try:
         feed = feedparser.parse(rss_url)
     except Exception as e:
-        print(f"   ❌ Error reaching RSS: {e}")
-        return
+        print(f"   ❌ Network/Parse Error: {e}")
+        return 0
+
+    if not feed.entries:
+        print("   ⚠️  No entries found in feed.")
+        return 0
 
     print(f"   Found {len(feed.entries)} entries. Processing latest 5...")
 
-    # Configure Newspaper4k
+    # Newspaper4k Config
     config = Config()
     config.browser_user_agent = USER_AGENT
     config.request_timeout = 10
 
-    # Process only the latest 5 entries to be polite and fast
-    for entry in feed.entries[:5]:
+    # Limit to 5 per feed to avoid bottlenecks in this demo version
+    # (Increase this number or remove the slice for full production)
+    for entry in feed.entries:
         url = entry.link
         
         try:
-            # 2. Download & Parse with Newspaper4k
+            # Download & Parse
             article = Article(url, config=config)
             article.download()
             article.parse()
             
-            # 3. Extract Fields
             title = article.title
             text = article.text.strip()
             
-            # Handle missing metadata gracefully
+            # Clean missing metadata
             authors = ", ".join(article.authors) if article.authors else "Unknown"
             pub_date = str(article.publish_date) if article.publish_date else "Unknown"
 
-            # Filter: Ignore empty articles or video-only pages
+            # Quality Filter: Ignore very short texts
             if len(text) > 150:
                 article_data = (url, source_name, title, text, authors, pub_date)
-                if(save_article_to_db(article_data)):
+                
+                if save_article_to_db(article_data):
                     saved_count += 1
             else:
-                print(f"   ⚠️  Content too short (<150 chars), discarded.")
+                pass # Silently ignore short content to keep logs clean
 
-            # Polite delay between requests
-            time.sleep(1)
+            # Polite delay
+            time.sleep(0.5)
 
         except Exception as e:
-            print(f"   ❌ Scrape Error ({url}): {e}")
+            # Most common error: 403 Forbidden or 404
+            # We just print a small 'x' to signify a skipped item
+            print(f"   x Failed: {url} ({str(e)[:50]})")
+            
     return saved_count
 
-# --- Main Execution ---
-
 if __name__ == "__main__":
-    print("--- SCRAPPER STARTED ---")
-    print(f"Database: {DB_PATH}")
+    print("--- 🦅 MASS HUNTER AGENT STARTED ---")
     
-    # 1. Ensure DB exists
+    # 1. Check if CSV exists
+    if not os.path.exists(SOURCES_CSV):
+        print(f"❌ Error: Source file not found at {SOURCES_CSV}")
+        exit()
+        
+    # 2. Init DB
     init_db()
     
+    # 3. Load Sources from CSV
+    print("Loading sources from CSV...")
+    df_sources = pd.read_csv(SOURCES_CSV)
+    print(f"📋 Loaded {len(df_sources)} sources to monitor.")
+    
+    total_new_articles = 0
     stats = {}
-    total_saved = 0
-
-    # 2. Run the cycle
-    for name, url in RSS_SOURCES.items():
-        n_saved = process_feed(name, url)
-        
-        # Guardamos el dato
-        stats[name] = n_saved
-        total_saved += n_saved
     
+    # 4. Main Loop
+    for index, row in df_sources.iterrows():
+        source_name = row['source_name']
+        rss_url = row['url']
+        
+        # Run the scraper for this source
+        new_count = process_feed(source_name, rss_url)
+        
+        total_new_articles += new_count
+        stats[source_name] = new_count
+        
+    # 5. Final Report
+    print("\n" + "="*50)
+    print("🏁 MISSION COMPLETE: INGEST REPORT")
     print("="*50)
-    print(f"📈 TOTAL NEW ARTICLES ADDED: {total_saved}")
-    print(stats)
-
-        
+    print(f"📈 TOTAL NEW ARTICLES: {total_new_articles}")
+    print("-" * 50)
     
+    # Show only sources that produced data to keep the report clean
+    for source, count in stats.items():
+        if count > 0:
+            print(f"🟢 {source:<25}: {count} new")
+            
+    print("="*50)
+    print(f"Database size updated at: {DB_PATH}")
