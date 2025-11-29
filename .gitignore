@@ -2,7 +2,6 @@
 # DATOS Y ARCHIVOS PESADOS
 # ---------------------------------------------------------
 # Ignorar toda la carpeta de datos
-data/
 
 # Ignorar archivos CSV sueltos en cualquier parte del proyecto
 *.xlsx

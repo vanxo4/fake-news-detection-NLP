@@ -1,0 +1,24 @@
+source_name,url
+Reuters World,http://feeds.reuters.com/reuters/worldNews
+BBC News,http://feeds.bbci.co.uk/news/world/rss.xml
+NY Times World,https://rss.nytimes.com/services/xml/rss/nyt/World.xml
+CNN Top Stories,http://rss.cnn.com/rss/cnn_topstories.rss
+The Onion (Satire),https://www.theonion.com/rss
+Babylon Bee (Satire),https://babylonbee.com/feed
+Daily Mail,https://www.dailymail.co.uk/news/index.rss
+Al Jazeera,https://www.aljazeera.com/xml/rss/all.xml
+CNBC Market,https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=10000664
+TechCrunch,https://techcrunch.com/feed/
+The Verge,https://www.theverge.com/rss/index.xml
+Wired,https://www.wired.com/feed/rss
+Guardian World,https://www.theguardian.com/world/rss
+Fox News,http://feeds.foxnews.com/foxnews/latest
+Buzzfeed World,https://www.buzzfeed.com/world.xml
+HuffPost,https://www.huffpost.com/section/front-page/feed
+NPR News,https://feeds.npr.org/1001/rss.xml
+Slate,https://slate.com/feeds/all.rss
+New Yorker,https://www.newyorker.com/feed/news
+Spiegel Online (Int),https://www.spiegel.de/international/index.rss
+El Pais (English),https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/section/elpais/portada
+Scientific American,http://rss.sciam.com/ScientificAmerican-Global
+National Geographic,http://feeds.nationalgeographic.com/ng/News/News_Main
