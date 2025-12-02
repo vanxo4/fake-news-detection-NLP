@@ -4,3 +4,6 @@ joblib
 feedparser
 newspaper4k
 lxml[html_clean]
+beautifulsoup4
+requests
+sentence-transformers
