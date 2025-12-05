@@ -17,8 +17,7 @@ import time
 from sklearn.pipeline import Pipeline
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
-from sklearn.svm import LinearSVC, SVC
-from sklearn.model_selection import train_test_split, GridSearchCV
+from sklearn.model_selection import train_test_split
 from sklearn.metrics import (
     classification_report, 
     accuracy_score, 
@@ -104,7 +103,10 @@ clsfParams = {
 }
 
 #Note on hyperparameter C:
-#C parameter must only be used when overfits occurs, because Regularization adds a penalty term to this cost function, so essentially it changes the objective function to minimize and the problem becomes different from the one without a penalty term. C is the inverse regularization, 1 as default, very low values cause coefficients to approach zero and model can underfit, high values cause the opposite. C must be used when model is overfitting, adding low C values. With underfitting we should use more high C values.
+#C parameter must only be used when overfits occurs, because Regularization adds a penalty term 
+# to this cost function, so essentially it changes the objective function to minimize and the problem becomes different from the one without a penalty term.
+# C is the inverse regularization, 1 as default, very low values cause coefficients to approach zero and model can underfit, high values cause the opposite.
+# C must be used when model is overfitting, adding low C values. With underfitting we should use more high C values.
 # Regularization (C): Inverse of regularization strength.
     # C = 1.0 is default.
     # Smaller values (e.g., 0.01) -> Stronger regularization (prevents overfitting). (high variance, memorizing noise).
